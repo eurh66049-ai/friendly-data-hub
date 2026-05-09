@@ -172,18 +172,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // وليس عند أخطاء الشبكة أو timeout
       if (error) {
         const errorMsg = error.message?.toLowerCase() || '';
-        const isAuthError = 
-          errorMsg.includes('refresh_token') ||
-          errorMsg.includes('invalid') ||
-          errorMsg.includes('expired') ||
-          errorMsg.includes('not found') ||
-          errorMsg.includes('session_not_found') ||
-          error.status === 401 || 
-          error.status === 403;
+        const isAuthError = isSupabaseAuthStorageError(error) || errorMsg.includes('invalid');
         
         if (isAuthError) {
           console.log('Auth error detected, signing out:', errorMsg);
-          await supabase.auth.signOut();
+          clearLocalSessionState();
         } else {
           console.warn('Transient session refresh error (not signing out):', errorMsg);
         }
@@ -194,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       revalidatingSessionRef.current = false;
     }
-  }, []);
+  }, [clearLocalSessionState]);
 
   useEffect(() => {
     if (!session) return;
