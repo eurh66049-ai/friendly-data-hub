@@ -20,7 +20,7 @@ const shouldRetryRequest = (input: RequestInfo | URL, init?: RequestInit) => {
   return method === 'GET' || method === 'HEAD' || url.includes('/rest/v1/rpc/get_home_books_fast');
 };
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+const supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
@@ -50,4 +50,5 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
+export const supabase = supabaseClient as ReturnType<typeof createClient>;
 export const supabaseFunctions = supabase;
