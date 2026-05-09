@@ -133,10 +133,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      hadSessionRef.current = !!currentSession;
+    supabase.auth.getSession().then(({ data: { session: currentSession }, error }) => {
+      if (error && isSupabaseAuthStorageError(error)) {
+        removeCorruptSupabaseAuthStorage();
+        setSession(null);
+        setUser(null);
+        hadSessionRef.current = false;
+      } else {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        hadSessionRef.current = !!currentSession;
+      }
+      setLoading(false);
+    }).catch((error) => {
+      if (isSupabaseAuthStorageError(error)) {
+        removeCorruptSupabaseAuthStorage();
+      }
+      setSession(null);
+      setUser(null);
+      hadSessionRef.current = false;
       setLoading(false);
     });
 
