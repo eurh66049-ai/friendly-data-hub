@@ -528,13 +528,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       playSound();
       explicitSignOutRef.current = true;
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
+      clearLocalSessionState();
       navigate('/auth');
     } catch (error) {
       explicitSignOutRef.current = false;
-      toast.error("خطأ في تسجيل الخروج", {
-        description: "حدث خطأ أثناء محاولة تسجيل الخروج"
-      });
+      clearLocalSessionState();
+      navigate('/auth');
     }
   };
 
@@ -549,12 +549,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         throw error;
       }
+      clearLocalSessionState();
       navigate('/auth');
     } catch (error: any) {
       pendingGlobalSignOutRef.current = false;
-      toast.error("خطأ في تسجيل الخروج", {
-        description: error.message || "حدث خطأ أثناء محاولة تسجيل الخروج من جميع الأجهزة"
-      });
+      clearLocalSessionState();
+      navigate('/auth');
     }
   };
 
