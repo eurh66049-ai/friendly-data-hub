@@ -4,6 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import clickSound from '/click-sound.mp3';
 import * as authUtils from '@/utils/authUtils';
 import { toast } from 'sonner';
+import { clearSupabaseAuthStorage, isSupabaseAuthStorageError, removeCorruptSupabaseAuthStorage } from '@/utils/supabaseSessionCleanup';
 
 interface AuthContextProps {
   session: Session | null;
@@ -53,6 +54,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const navigate = useCallback((path: string) => {
     window.location.href = path;
+  }, []);
+
+  const clearLocalSessionState = useCallback(() => {
+    clearSupabaseAuthStorage();
+    setSession(null);
+    setUser(null);
+    hadSessionRef.current = false;
   }, []);
 
   const playSound = () => {
