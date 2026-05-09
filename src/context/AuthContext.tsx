@@ -4,6 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import clickSound from '/click-sound.mp3';
 import * as authUtils from '@/utils/authUtils';
 import { toast } from 'sonner';
+import { clearSupabaseAuthStorage, isSupabaseAuthStorageError, removeCorruptSupabaseAuthStorage } from '@/utils/supabaseSessionCleanup';
 
 interface AuthContextProps {
   session: Session | null;
@@ -53,6 +54,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const navigate = useCallback((path: string) => {
     window.location.href = path;
+  }, []);
+
+  const clearLocalSessionState = useCallback(() => {
+    clearSupabaseAuthStorage();
+    setSession(null);
+    setUser(null);
+    hadSessionRef.current = false;
   }, []);
 
   const playSound = () => {
@@ -125,10 +133,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      hadSessionRef.current = !!currentSession;
+    supabase.auth.getSession().then(({ data: { session: currentSession }, error }) => {
+      if (error && isSupabaseAuthStorageError(error)) {
+        removeCorruptSupabaseAuthStorage();
+        setSession(null);
+        setUser(null);
+        hadSessionRef.current = false;
+      } else {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        hadSessionRef.current = !!currentSession;
+      }
+      setLoading(false);
+    }).catch((error) => {
+      if (isSupabaseAuthStorageError(error)) {
+        removeCorruptSupabaseAuthStorage();
+      }
+      setSession(null);
+      setUser(null);
+      hadSessionRef.current = false;
       setLoading(false);
     });
 
@@ -149,18 +172,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // وليس عند أخطاء الشبكة أو timeout
       if (error) {
         const errorMsg = error.message?.toLowerCase() || '';
-        const isAuthError = 
-          errorMsg.includes('refresh_token') ||
-          errorMsg.includes('invalid') ||
-          errorMsg.includes('expired') ||
-          errorMsg.includes('not found') ||
-          errorMsg.includes('session_not_found') ||
-          error.status === 401 || 
-          error.status === 403;
+        const isAuthError = isSupabaseAuthStorageError(error) || errorMsg.includes('invalid');
         
         if (isAuthError) {
           console.log('Auth error detected, signing out:', errorMsg);
-          await supabase.auth.signOut();
+          clearLocalSessionState();
         } else {
           console.warn('Transient session refresh error (not signing out):', errorMsg);
         }
@@ -171,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       revalidatingSessionRef.current = false;
     }
-  }, []);
+  }, [clearLocalSessionState]);
 
   useEffect(() => {
     if (!session) return;
@@ -512,13 +528,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       playSound();
       explicitSignOutRef.current = true;
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
+      clearLocalSessionState();
       navigate('/auth');
     } catch (error) {
       explicitSignOutRef.current = false;
-      toast.error("خطأ في تسجيل الخروج", {
-        description: "حدث خطأ أثناء محاولة تسجيل الخروج"
-      });
+      clearLocalSessionState();
+      navigate('/auth');
     }
   };
 
@@ -533,12 +549,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         throw error;
       }
+      clearLocalSessionState();
       navigate('/auth');
     } catch (error: any) {
       pendingGlobalSignOutRef.current = false;
-      toast.error("خطأ في تسجيل الخروج", {
-        description: error.message || "حدث خطأ أثناء محاولة تسجيل الخروج من جميع الأجهزة"
-      });
+      clearLocalSessionState();
+      navigate('/auth');
     }
   };
 
