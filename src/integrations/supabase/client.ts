@@ -11,6 +11,15 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 removeCorruptSupabaseAuthStorage();
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const shouldRetryRequest = (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = String(input);
+  const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+
+  return method === 'GET' || method === 'HEAD' || url.includes('/rest/v1/rpc/get_home_books_fast');
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
@@ -19,13 +28,24 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
   global: {
     fetch: async (input, init) => {
-      const response = await fetch(input, init);
+      const canRetry = shouldRetryRequest(input, init);
 
-      if ((response.status === 401 || response.status === 403) && String(input).includes('/auth/v1/')) {
-        removeCorruptSupabaseAuthStorage();
+      for (let attempt = 0; attempt < (canRetry ? 3 : 1); attempt += 1) {
+        try {
+          const response = await fetch(input, init);
+
+          if ((response.status === 401 || response.status === 403) && String(input).includes('/auth/v1/')) {
+            removeCorruptSupabaseAuthStorage();
+          }
+
+          return response;
+        } catch (error) {
+          if (!canRetry || attempt === 2) throw error;
+          await wait(700 * (attempt + 1));
+        }
       }
 
-      return response;
+      return fetch(input, init);
     }
   }
 });
