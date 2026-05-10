@@ -23,12 +23,21 @@ interface BookWithExtraction {
 
 type BulkState = 'idle' | 'running' | 'paused';
 
+const PAGE_SIZE = 24;
+
 const TextExtractionManager: React.FC = () => {
   const [books, setBooks] = useState<BookWithExtraction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [processingBookId, setProcessingBookId] = useState<string | null>(null);
   const [viewText, setViewText] = useState<{ bookTitle: string; text: string } | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Bulk extraction state
   const [bulkState, setBulkState] = useState<BulkState>('idle');
