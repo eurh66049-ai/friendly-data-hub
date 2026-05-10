@@ -187,6 +187,19 @@ const ReadingHistory: React.FC = () => {
               </Card>
             </motion.div>
           ))}
+
+          {hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-6">
+              {loadingMore ? (
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              ) : (
+                <Button variant="outline" size="sm" onClick={loadMore}>تحميل المزيد</Button>
+              )}
+            </div>
+          )}
+          {!hasMore && history.length > 0 && (
+            <div className="text-center py-3 text-xs text-muted-foreground">— نهاية السجل —</div>
+          )}
         </div>
       )}
     </div>
