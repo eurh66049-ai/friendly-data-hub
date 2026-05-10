@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
-import { List, type RowComponentProps } from 'react-window';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,12 +23,21 @@ interface BookWithExtraction {
 
 type BulkState = 'idle' | 'running' | 'paused';
 
+const PAGE_SIZE = 24;
+
 const TextExtractionManager: React.FC = () => {
   const [books, setBooks] = useState<BookWithExtraction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [processingBookId, setProcessingBookId] = useState<string | null>(null);
   const [viewText, setViewText] = useState<{ bookTitle: string; text: string } | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Bulk extraction state
   const [bulkState, setBulkState] = useState<BulkState>('idle');
@@ -63,59 +71,35 @@ const TextExtractionManager: React.FC = () => {
     return () => clearInterval(id);
   }, [fetchQueueStats]);
 
-  const fetchBooks = async () => {
-    setLoading(true);
+  // جلب صفحة من 24 كتاباً مع حالة الاستخراج
+  const fetchBooksPage = useCallback(async (pageNum: number, append: boolean) => {
+    if (append) setLoadingMore(true); else setLoading(true);
     try {
-      // جلب جميع الكتب المعتمدة عبر صفحات (pagination) لتجاوز حد 1000 الافتراضي
-      const PAGE_SIZE = 1000;
-      let allBooks: any[] = [];
-      let from = 0;
-      while (true) {
-        const { data: page, error } = await supabase
-          .from('approved_books' as any)
-          .select('id, title, author, cover_image_url, book_file_url')
-          .order('created_at', { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data: pageBooks, error } = await supabase
+        .from('approved_books' as any)
+        .select('id, title, author, cover_image_url, book_file_url')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (error) throw error;
 
-        if (error) throw error;
-        const pageData = (page as any[]) || [];
-        allBooks = allBooks.concat(pageData);
-        if (pageData.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
-      }
-
-      // جلب جميع سجلات الاستخراج عبر صفحات أيضاً لأن Supabase يطبق حد 1000 صف افتراضياً
-      let allExtractions: Array<{
-        book_id: string | null;
-        extraction_status: string | null;
-        text_length: number | null;
-        extraction_error: string | null;
-        updated_at: string | null;
-      }> = [];
-      let extractionFrom = 0;
-
-      while (true) {
-        const { data: extractionPage, error: extractionError } = await supabase
+      const bookList = (pageBooks as any[]) || [];
+      const ids = bookList.map(b => b.id);
+      let extractionMap = new Map<string, any>();
+      if (ids.length > 0) {
+        const { data: extractions } = await supabase
           .from('book_extracted_text')
           .select('book_id, extraction_status, text_length, extraction_error, updated_at')
-          .order('updated_at', { ascending: false })
-          .range(extractionFrom, extractionFrom + PAGE_SIZE - 1);
-
-        if (extractionError) throw extractionError;
-
-        const pageData = extractionPage || [];
-        allExtractions = allExtractions.concat(pageData);
-        if (pageData.length < PAGE_SIZE) break;
-        extractionFrom += PAGE_SIZE;
+          .in('book_id', ids);
+        extractionMap = new Map(
+          (extractions || [])
+            .filter((e) => e.book_id)
+            .map((e) => [e.book_id as string, e])
+        );
       }
 
-      const extractionMap = new Map(
-        allExtractions
-          .filter((extraction) => extraction.book_id)
-          .map((extraction) => [extraction.book_id, extraction])
-      );
-
-      const booksWithExtraction: BookWithExtraction[] = allBooks.map((book: any) => {
+      const merged: BookWithExtraction[] = bookList.map((book: any) => {
         const ext = extractionMap.get(book.id);
         return {
           ...book,
@@ -123,24 +107,60 @@ const TextExtractionManager: React.FC = () => {
           text_length: ext?.text_length || null,
           extraction_error: ext?.extraction_error || null,
         };
-      }).sort((a, b) => {
-        const aCompleted = a.extraction_status === 'completed' && (a.text_length || 0) > 0 ? 1 : 0;
-        const bCompleted = b.extraction_status === 'completed' && (b.text_length || 0) > 0 ? 1 : 0;
-        return aCompleted - bCompleted;
       });
 
-      setBooks(booksWithExtraction);
+      setBooks(prev => append ? [...prev, ...merged] : merged);
+      setHasMore(bookList.length === PAGE_SIZE);
+      setPage(pageNum);
     } catch (err) {
       console.error('Error fetching books:', err);
       toast({ title: 'خطأ في جلب الكتب', variant: 'destructive' });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [toast]);
+
+  // جلب الإحصائيات الإجمالية (عدّ فقط، بدون تحميل البيانات كاملة)
+  const fetchStats = useCallback(async () => {
+    try {
+      const [{ count: total }, { count: completed }] = await Promise.all([
+        supabase.from('approved_books' as any).select('id', { count: 'exact', head: true }),
+        supabase.from('book_extracted_text').select('book_id', { count: 'exact', head: true }).eq('extraction_status', 'completed').gt('text_length', 0),
+      ]);
+      const t = total || 0;
+      const c = completed || 0;
+      setTotalCount(t);
+      setCompletedCount(c);
+      setPendingCount(Math.max(t - c, 0));
+    } catch (err) {
+      console.error('stats error', err);
+    }
+  }, []);
+
+  const fetchBooks = useCallback(async () => {
+    setPage(0);
+    setHasMore(true);
+    await Promise.all([fetchBooksPage(0, false), fetchStats()]);
+  }, [fetchBooksPage, fetchStats]);
 
   useEffect(() => {
     fetchBooks();
   }, []);
+
+  // التحميل التلقائي عند الوصول لأسفل الصفحة
+  useEffect(() => {
+    if (!hasMore || loading || loadingMore) return;
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore && bulkState === 'idle') {
+        fetchBooksPage(page + 1, true);
+      }
+    }, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, page, bulkState, fetchBooksPage]);
 
   const extractText = async (bookId: string): Promise<{ ok: boolean; error?: string }> => {
     try {
@@ -286,14 +306,7 @@ const TextExtractionManager: React.FC = () => {
     );
   }, [books, deferredQuery]);
 
-  const pendingCount = useMemo(
-    () => books.filter(b => !(b.extraction_status === 'completed' && (b.text_length || 0) > 0) && b.book_file_url).length,
-    [books]
-  );
-  const completedCount = useMemo(
-    () => books.filter(b => b.extraction_status === 'completed' && (b.text_length || 0) > 0).length,
-    [books]
-  );
+  // pendingCount/completedCount مأخوذان الآن من إحصائيات السيرفر مباشرةً (state)
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
@@ -308,69 +321,60 @@ const TextExtractionManager: React.FC = () => {
     }
   };
 
-  // صف الكتاب داخل القائمة الافتراضية (react-window v2)
-  const BookRow = useCallback(
-    ({ index, style, books: rowBooks }: RowComponentProps<{ books: BookWithExtraction[] }>) => {
-      const book = rowBooks[index];
-      if (!book) return null;
-      return (
-        <div style={style} className="px-1 pb-3">
-          <Card className={`overflow-hidden ${processingBookId === book.id ? 'ring-2 ring-primary' : ''}`}>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-muted">
-                  {book.cover_image_url ? (
-                    <img src={book.cover_image_url} alt={book.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <FileText className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm truncate">{book.title}</h3>
-                  <p className="text-xs text-muted-foreground truncate">{book.author}</p>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    {getStatusBadge(book.extraction_status)}
-                    {book.text_length && (
-                      <span className="text-xs text-muted-foreground">
-                        {book.text_length.toLocaleString()} حرف
-                      </span>
-                    )}
-                  </div>
-                  {book.extraction_error && (
-                    <p className="text-xs text-destructive mt-1 truncate">{book.extraction_error}</p>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-2 flex-shrink-0">
-                  <Button
-                    size="sm"
-                    onClick={() => handleSingleExtract(book.id)}
-                    disabled={processingBookId === book.id || bulkState !== 'idle'}
-                  >
-                    {processingBookId === book.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileText className="h-4 w-4 ml-1" />
-                    )}
-                    استخراج
-                  </Button>
-                  {book.extraction_status === 'completed' && (
-                    <Button size="sm" variant="outline" onClick={() => viewExtractedText(book.id, book.title)}>
-                      <Eye className="h-4 w-4 ml-1" />
-                      عرض
-                    </Button>
-                  )}
-                </div>
+  // بطاقة كتاب واحد
+  const renderBookCard = (book: BookWithExtraction) => (
+    <Card key={book.id} className={`overflow-hidden ${processingBookId === book.id ? 'ring-2 ring-primary' : ''}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-4">
+          <div className="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-muted">
+            {book.cover_image_url ? (
+              <img src={book.cover_image_url} alt={book.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <FileText className="h-6 w-6 text-muted-foreground" />
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm truncate">{book.title}</h3>
+            <p className="text-xs text-muted-foreground truncate">{book.author}</p>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {getStatusBadge(book.extraction_status)}
+              {book.text_length && (
+                <span className="text-xs text-muted-foreground">
+                  {book.text_length.toLocaleString()} حرف
+                </span>
+              )}
+            </div>
+            {book.extraction_error && (
+              <p className="text-xs text-destructive mt-1 truncate">{book.extraction_error}</p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 flex-shrink-0">
+            <Button
+              size="sm"
+              onClick={() => handleSingleExtract(book.id)}
+              disabled={processingBookId === book.id || bulkState !== 'idle'}
+            >
+              {processingBookId === book.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4 ml-1" />
+              )}
+              استخراج
+            </Button>
+            {book.extraction_status === 'completed' && (
+              <Button size="sm" variant="outline" onClick={() => viewExtractedText(book.id, book.title)}>
+                <Eye className="h-4 w-4 ml-1" />
+                عرض
+              </Button>
+            )}
+          </div>
         </div>
-      );
-    },
-    [processingBookId, bulkState]
+      </CardContent>
+    </Card>
   );
 
   if (loading) {
@@ -454,7 +458,7 @@ const TextExtractionManager: React.FC = () => {
                 الاستخراج التلقائي الشامل
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                إجمالي: {books.length} | مستخرج: {completedCount} | بحاجة لاستخراج: {pendingCount}
+                إجمالي: {totalCount} | مستخرج: {completedCount} | بحاجة لاستخراج: {pendingCount}
               </p>
             </div>
 
@@ -528,17 +532,28 @@ const TextExtractionManager: React.FC = () => {
 
       {filteredBooks.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          لا توجد كتب مطابقة للبحث
+          {deferredQuery.trim() ? 'لا توجد كتب مطابقة للبحث' : 'لا توجد كتب'}
         </div>
       ) : (
-        <List
-          rowComponent={BookRow}
-          rowCount={filteredBooks.length}
-          rowHeight={140}
-          rowProps={{ books: filteredBooks }}
-          overscanCount={4}
-          style={{ height: 'calc(100vh - 360px)', minHeight: 400 }}
-        />
+        <div className="space-y-3">
+          {filteredBooks.map(renderBookCard)}
+
+          {/* sentinel + load-more للتحميل التلقائي عند التمرير */}
+          {!deferredQuery.trim() && hasMore && (
+            <div ref={loadMoreRef} className="flex justify-center py-6">
+              {loadingMore ? (
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => fetchBooksPage(page + 1, true)} disabled={bulkState !== 'idle'}>
+                  تحميل المزيد
+                </Button>
+              )}
+            </div>
+          )}
+          {!hasMore && books.length > 0 && (
+            <div className="text-center py-4 text-xs text-muted-foreground">— تم تحميل كل الكتب —</div>
+          )}
+        </div>
       )}
 
       <ExtractedTextDialog viewText={viewText} onClose={() => setViewText(null)} />

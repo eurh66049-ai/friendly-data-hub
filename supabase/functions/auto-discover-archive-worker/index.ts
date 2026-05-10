@@ -124,8 +124,21 @@ serve(async (req) => {
       });
     }
 
-    // 3) تحضير استعلام Archive.org
-    const archiveQuery = DEFAULT_ARABIC_ARCHIVE_QUERY;
+    // 3) تحضير استعلام Archive.org — نستخدم استعلام المستخدم المخصص (تصنيف/موضوع)
+    // إن وُجد، وإلا نعود للاستعلام الافتراضي لكل الكتب العربية.
+    const userQ = (config.search_query || "").toString().trim();
+    let archiveQuery = DEFAULT_ARABIC_ARCHIVE_QUERY;
+    if (userQ && userQ !== DEFAULT_ARABIC_ARCHIVE_QUERY) {
+      // إن لم يحتوِ المستخدم على فلاتر Lucene، نُحسّن استعلامه عبر Mistral
+      // ونضمن وجود فلاتر mediatype/format/language
+      const looksLikeLucene = /[:()]/.test(userQ);
+      const refined = looksLikeLucene ? userQ : await refineQueryWithMistral(userQ);
+      let q = refined;
+      if (!/mediatype/i.test(q)) q += " AND mediatype:(texts)";
+      if (!/format/i.test(q)) q += " AND format:(PDF)";
+      if (!/language|collection:booksbylanguage/i.test(q)) q += " AND language:Arabic";
+      archiveQuery = q;
+    }
 
     const batchSize = Math.min(config.batch_size || 100, 200);
     // الهدف: عدد الكتب الجديدة التي نريد إضافتها هذا التشغيل
@@ -246,10 +259,10 @@ serve(async (req) => {
         const preferred = pdfs
           .filter((f) => !/_bw\.pdf$|_text\.pdf$/i.test(f.name))
           .sort((a, b) => b.size - a.size);
-        const candidates = [...preferred, ...pdfs.filter((f) => !preferred.some((p) => p.name === f.name))]
+        const pdfCandidates = [...preferred, ...pdfs.filter((f) => !preferred.some((p) => p.name === f.name))]
           .slice(0, 4);
         const MAX_BYTES = 45 * 1024 * 1024;
-        const chosen = (await Promise.all(candidates.map(async (candidate) => {
+        const chosen = (await Promise.all(pdfCandidates.map(async (candidate) => {
           if (candidate.size && candidate.size > MAX_BYTES) return null;
           const url = `https://archive.org/download/${encodeURIComponent(identifier)}/${encodeArchivePath(candidate.name)}`;
           return await isDownloadableArchivePdf(url) ? { ...candidate, url } : null;

@@ -1,19 +1,32 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useReadingHistory } from '@/hooks/useReadingHistory';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookOpen, Trash2, CheckCircle, Clock } from 'lucide-react';
+import { BookOpen, Trash2, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
 const ReadingHistory: React.FC = () => {
-  const { history, loading, deleteHistoryItem } = useReadingHistory();
+  const { history, loading, loadingMore, hasMore, deleteHistoryItem, loadMore } = useReadingHistory();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'reading' | 'completed'>('all');
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // التحميل التلقائي عند الوصول لأسفل القائمة (24 كتاب في كل دفعة)
+  useEffect(() => {
+    if (!hasMore || loading || loadingMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, loadMore]);
 
   const filteredHistory = history.filter(item => {
     if (filter === 'reading') return !item.is_completed;
@@ -174,6 +187,19 @@ const ReadingHistory: React.FC = () => {
               </Card>
             </motion.div>
           ))}
+
+          {hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-6">
+              {loadingMore ? (
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              ) : (
+                <Button variant="outline" size="sm" onClick={loadMore}>تحميل المزيد</Button>
+              )}
+            </div>
+          )}
+          {!hasMore && history.length > 0 && (
+            <div className="text-center py-3 text-xs text-muted-foreground">— نهاية السجل —</div>
+          )}
         </div>
       )}
     </div>
