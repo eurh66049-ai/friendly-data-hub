@@ -167,10 +167,27 @@ const AutoDiscoverPanel: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="rounded-lg border p-3 bg-background">
-            <Label className="text-xs">مصدر الجلب</Label>
-            <div className="text-sm font-medium mt-1">كل الكتب العربية من Archive.org تلقائيًا</div>
-            <div className="text-xs text-muted-foreground mt-1">لا تحتاج لكتابة استعلام بحث؛ النظام يستخدم مجموعة الكتب العربية مباشرة.</div>
+          <div className="rounded-lg border p-3 bg-background space-y-2">
+            <Label htmlFor="auto-discover-query" className="text-xs">
+              تصنيف / موضوع البحث في Archive.org (اختياري)
+            </Label>
+            <input
+              id="auto-discover-query"
+              type="text"
+              placeholder="مثال: رواية، تاريخ، فقه، شعر، فلسفة..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onBlur={() => {
+                const q = searchQuery.trim();
+                const next = q || defaultArabicQuery;
+                if (next !== cfg?.search_query) save({ search_query: next, cursor: null });
+              }}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              dir="rtl"
+            />
+            <div className="text-xs text-muted-foreground">
+              اتركه فارغاً لجلب كل الكتب العربية. عند التغيير، تتم إعادة المؤشر تلقائياً.
+            </div>
           </div>
           <div>
             <Label className="text-xs">الحد الأدنى للطابور (يُجلب دفعة جديدة عند النزول تحته)</Label>
