@@ -74,9 +74,10 @@ const AutoDiscoverPanel: React.FC = () => {
   };
 
   const toggleEnabled = async (checked: boolean) => {
+    const q = (searchQuery || '').trim();
     await save({
       enabled: checked,
-      search_query: defaultArabicQuery,
+      search_query: q || defaultArabicQuery,
       min_pending_threshold: threshold,
       cursor: checked ? null : cfg?.cursor,
     });
