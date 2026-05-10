@@ -306,14 +306,7 @@ const TextExtractionManager: React.FC = () => {
     );
   }, [books, deferredQuery]);
 
-  const pendingCount = useMemo(
-    () => books.filter(b => !(b.extraction_status === 'completed' && (b.text_length || 0) > 0) && b.book_file_url).length,
-    [books]
-  );
-  const completedCount = useMemo(
-    () => books.filter(b => b.extraction_status === 'completed' && (b.text_length || 0) > 0).length,
-    [books]
-  );
+  // pendingCount/completedCount مأخوذان الآن من إحصائيات السيرفر مباشرةً (state)
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
