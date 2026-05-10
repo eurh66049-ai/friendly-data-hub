@@ -458,7 +458,7 @@ const TextExtractionManager: React.FC = () => {
                 الاستخراج التلقائي الشامل
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                إجمالي: {books.length} | مستخرج: {completedCount} | بحاجة لاستخراج: {pendingCount}
+                إجمالي: {totalCount} | مستخرج: {completedCount} | بحاجة لاستخراج: {pendingCount}
               </p>
             </div>
 
