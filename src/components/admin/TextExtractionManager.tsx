@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
-import { List, type RowComponentProps } from 'react-window';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
