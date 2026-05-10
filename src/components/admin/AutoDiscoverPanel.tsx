@@ -29,6 +29,7 @@ const AutoDiscoverPanel: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [threshold, setThreshold] = useState(100);
+  const [searchQuery, setSearchQuery] = useState('');
   const defaultArabicQuery = 'collection:booksbylanguage_arabic AND mediatype:texts AND format:PDF';
 
   const load = async () => {
