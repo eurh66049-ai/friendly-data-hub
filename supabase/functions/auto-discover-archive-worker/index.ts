@@ -246,10 +246,10 @@ serve(async (req) => {
         const preferred = pdfs
           .filter((f) => !/_bw\.pdf$|_text\.pdf$/i.test(f.name))
           .sort((a, b) => b.size - a.size);
-        const candidates = [...preferred, ...pdfs.filter((f) => !preferred.some((p) => p.name === f.name))]
+        const pdfCandidates = [...preferred, ...pdfs.filter((f) => !preferred.some((p) => p.name === f.name))]
           .slice(0, 4);
         const MAX_BYTES = 45 * 1024 * 1024;
-        const chosen = (await Promise.all(candidates.map(async (candidate) => {
+        const chosen = (await Promise.all(pdfCandidates.map(async (candidate) => {
           if (candidate.size && candidate.size > MAX_BYTES) return null;
           const url = `https://archive.org/download/${encodeURIComponent(identifier)}/${encodeArchivePath(candidate.name)}`;
           return await isDownloadableArchivePdf(url) ? { ...candidate, url } : null;
