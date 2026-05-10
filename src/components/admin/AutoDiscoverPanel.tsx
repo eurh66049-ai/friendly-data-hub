@@ -42,6 +42,8 @@ const AutoDiscoverPanel: React.FC = () => {
     if (data) {
       setCfg(data as Config);
       setThreshold(data.min_pending_threshold || 100);
+      const sq = (data.search_query || '').toString();
+      setSearchQuery(sq && sq !== defaultArabicQuery ? sq : '');
     }
     const { count } = await supabase
       .from('bulk_upload_queue')
