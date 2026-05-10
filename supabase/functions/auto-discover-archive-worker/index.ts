@@ -124,8 +124,21 @@ serve(async (req) => {
       });
     }
 
-    // 3) تحضير استعلام Archive.org
-    const archiveQuery = DEFAULT_ARABIC_ARCHIVE_QUERY;
+    // 3) تحضير استعلام Archive.org — نستخدم استعلام المستخدم المخصص (تصنيف/موضوع)
+    // إن وُجد، وإلا نعود للاستعلام الافتراضي لكل الكتب العربية.
+    const userQ = (config.search_query || "").toString().trim();
+    let archiveQuery = DEFAULT_ARABIC_ARCHIVE_QUERY;
+    if (userQ && userQ !== DEFAULT_ARABIC_ARCHIVE_QUERY) {
+      // إن لم يحتوِ المستخدم على فلاتر Lucene، نُحسّن استعلامه عبر Mistral
+      // ونضمن وجود فلاتر mediatype/format/language
+      const looksLikeLucene = /[:()]/.test(userQ);
+      const refined = looksLikeLucene ? userQ : await refineQueryWithMistral(userQ);
+      let q = refined;
+      if (!/mediatype/i.test(q)) q += " AND mediatype:(texts)";
+      if (!/format/i.test(q)) q += " AND format:(PDF)";
+      if (!/language|collection:booksbylanguage/i.test(q)) q += " AND language:Arabic";
+      archiveQuery = q;
+    }
 
     const batchSize = Math.min(config.batch_size || 100, 200);
     // الهدف: عدد الكتب الجديدة التي نريد إضافتها هذا التشغيل
