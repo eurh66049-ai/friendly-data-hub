@@ -321,69 +321,60 @@ const TextExtractionManager: React.FC = () => {
     }
   };
 
-  // صف الكتاب داخل القائمة الافتراضية (react-window v2)
-  const BookRow = useCallback(
-    ({ index, style, books: rowBooks }: RowComponentProps<{ books: BookWithExtraction[] }>) => {
-      const book = rowBooks[index];
-      if (!book) return null;
-      return (
-        <div style={style} className="px-1 pb-3">
-          <Card className={`overflow-hidden ${processingBookId === book.id ? 'ring-2 ring-primary' : ''}`}>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-muted">
-                  {book.cover_image_url ? (
-                    <img src={book.cover_image_url} alt={book.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <FileText className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm truncate">{book.title}</h3>
-                  <p className="text-xs text-muted-foreground truncate">{book.author}</p>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    {getStatusBadge(book.extraction_status)}
-                    {book.text_length && (
-                      <span className="text-xs text-muted-foreground">
-                        {book.text_length.toLocaleString()} حرف
-                      </span>
-                    )}
-                  </div>
-                  {book.extraction_error && (
-                    <p className="text-xs text-destructive mt-1 truncate">{book.extraction_error}</p>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-2 flex-shrink-0">
-                  <Button
-                    size="sm"
-                    onClick={() => handleSingleExtract(book.id)}
-                    disabled={processingBookId === book.id || bulkState !== 'idle'}
-                  >
-                    {processingBookId === book.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileText className="h-4 w-4 ml-1" />
-                    )}
-                    استخراج
-                  </Button>
-                  {book.extraction_status === 'completed' && (
-                    <Button size="sm" variant="outline" onClick={() => viewExtractedText(book.id, book.title)}>
-                      <Eye className="h-4 w-4 ml-1" />
-                      عرض
-                    </Button>
-                  )}
-                </div>
+  // بطاقة كتاب واحد
+  const renderBookCard = (book: BookWithExtraction) => (
+    <Card key={book.id} className={`overflow-hidden ${processingBookId === book.id ? 'ring-2 ring-primary' : ''}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-4">
+          <div className="w-16 h-20 flex-shrink-0 rounded overflow-hidden bg-muted">
+            {book.cover_image_url ? (
+              <img src={book.cover_image_url} alt={book.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <FileText className="h-6 w-6 text-muted-foreground" />
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm truncate">{book.title}</h3>
+            <p className="text-xs text-muted-foreground truncate">{book.author}</p>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {getStatusBadge(book.extraction_status)}
+              {book.text_length && (
+                <span className="text-xs text-muted-foreground">
+                  {book.text_length.toLocaleString()} حرف
+                </span>
+              )}
+            </div>
+            {book.extraction_error && (
+              <p className="text-xs text-destructive mt-1 truncate">{book.extraction_error}</p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 flex-shrink-0">
+            <Button
+              size="sm"
+              onClick={() => handleSingleExtract(book.id)}
+              disabled={processingBookId === book.id || bulkState !== 'idle'}
+            >
+              {processingBookId === book.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4 ml-1" />
+              )}
+              استخراج
+            </Button>
+            {book.extraction_status === 'completed' && (
+              <Button size="sm" variant="outline" onClick={() => viewExtractedText(book.id, book.title)}>
+                <Eye className="h-4 w-4 ml-1" />
+                عرض
+              </Button>
+            )}
+          </div>
         </div>
-      );
-    },
-    [processingBookId, bulkState]
+      </CardContent>
+    </Card>
   );
 
   if (loading) {
