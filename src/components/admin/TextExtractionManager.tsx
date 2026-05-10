@@ -532,17 +532,28 @@ const TextExtractionManager: React.FC = () => {
 
       {filteredBooks.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          لا توجد كتب مطابقة للبحث
+          {deferredQuery.trim() ? 'لا توجد كتب مطابقة للبحث' : 'لا توجد كتب'}
         </div>
       ) : (
-        <List
-          rowComponent={BookRow}
-          rowCount={filteredBooks.length}
-          rowHeight={140}
-          rowProps={{ books: filteredBooks }}
-          overscanCount={4}
-          style={{ height: 'calc(100vh - 360px)', minHeight: 400 }}
-        />
+        <div className="space-y-3">
+          {filteredBooks.map(renderBookCard)}
+
+          {/* sentinel + load-more للتحميل التلقائي عند التمرير */}
+          {!deferredQuery.trim() && hasMore && (
+            <div ref={loadMoreRef} className="flex justify-center py-6">
+              {loadingMore ? (
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => fetchBooksPage(page + 1, true)} disabled={bulkState !== 'idle'}>
+                  تحميل المزيد
+                </Button>
+              )}
+            </div>
+          )}
+          {!hasMore && books.length > 0 && (
+            <div className="text-center py-4 text-xs text-muted-foreground">— تم تحميل كل الكتب —</div>
+          )}
+        </div>
       )}
 
       <ExtractedTextDialog viewText={viewText} onClose={() => setViewText(null)} />
