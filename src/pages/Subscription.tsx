@@ -14,12 +14,6 @@ const PAYPAL_CLIENT_ID = 'BAApZa13UAQjwvN30iIJdTy78256Dr3lT4ZuFsoCg8JnK7JUmENbhI
 const PAYPAL_BUTTON_ID = 'J5YMWJAG3T8RS';
 const PAYPAL_SRC = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
 
-declare global {
-  interface Window {
-    paypal?: any;
-  }
-}
-
 const PLANS = [
   {
     id: 'monthly' as const,
