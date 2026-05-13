@@ -2051,6 +2051,33 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_customizations: {
+        Row: {
+          avatar_frame: string | null
+          created_at: string
+          profile_theme: string | null
+          seasonal_badge: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_frame?: string | null
+          created_at?: string
+          profile_theme?: string | null
+          seasonal_badge?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_frame?: string | null
+          created_at?: string
+          profile_theme?: string | null
+          seasonal_badge?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           allow_messaging: boolean | null
@@ -3035,6 +3062,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscriptions: {
+        Row: {
+          amount_usd: number | null
+          created_at: string
+          expires_at: string
+          id: string
+          paypal_txn_id: string | null
+          plan: string
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_usd?: number | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          paypal_txn_id?: string | null
+          plan: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          paypal_txn_id?: string | null
+          plan?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       suggestion_likes: {
         Row: {
@@ -4982,6 +5048,7 @@ export type Database = {
       is_user_following_author:
         | { Args: { p_author_id: string; p_user_id: string }; Returns: boolean }
         | { Args: { p_author_id: string; p_user_id: string }; Returns: boolean }
+      is_user_verified: { Args: { _user_id: string }; Returns: boolean }
       log_missing_file: {
         Args: {
           p_book_id: string
