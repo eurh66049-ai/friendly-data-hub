@@ -15,3 +15,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Alias kept for backward compatibility — some legacy modules import
+// `supabaseFunctions` and use `.functions.invoke(...)` to call edge functions.
+export const supabaseFunctions = supabase;
