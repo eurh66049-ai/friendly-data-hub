@@ -95,7 +95,7 @@ const BookReviews: React.FC<BookReviewsProps> = ({ bookId, bookTitle }) => {
           .select('id, is_ai_bot')
           .in('id', userIds);
         const botMap = new Map((botFlags ?? []).map((p: any) => [p.id, !!p.is_ai_bot]));
-        formattedReviews.forEach(r => { r.profiles.is_ai_bot = botMap.get(r.user_id) ?? false; });
+        formattedReviews.forEach(r => { (r.profiles as any).is_ai_bot = botMap.get(r.user_id) ?? false; });
       }
 
       setReviews(formattedReviews);

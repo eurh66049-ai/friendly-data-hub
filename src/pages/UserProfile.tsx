@@ -8,11 +8,16 @@ import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SEOHead } from '@/components/seo/SEOHead';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { BadgeCheck, Palette } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const UserProfile: React.FC = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const sub = useSubscription(user?.id);
 
   React.useEffect(() => {
     if (!loading && !user) {
@@ -56,9 +61,23 @@ const UserProfile: React.FC = () => {
       >
         <div className="container mx-auto">
           <motion.div variants={itemVariants} className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-tajawal font-black mb-4 text-foreground">الملف الشخصي</h1>
+            <h1 className="text-3xl md:text-4xl font-tajawal font-black mb-4 text-foreground inline-flex items-center gap-2">
+              الملف الشخصي
+              {sub.isActive && <BadgeCheck className="w-7 h-7 text-blue-500" fill="currentColor" stroke="white" />}
+            </h1>
             <p className="text-foreground max-w-xl mx-auto font-cairo text-base md:text-lg font-black">إدارة حسابك وتفضيلاتك الشخصية</p>
             <div className="h-1 w-24 bg-gradient-to-r from-book-primary to-book-accent mx-auto mt-4 rounded-full" />
+            <div className="flex flex-wrap gap-2 justify-center mt-5">
+              {sub.isActive ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/profile-customization"><Palette className="w-4 h-4 me-1" /> تخصيص الإطار والثيم</Link>
+                </Button>
+              ) : (
+                <Button asChild size="sm" className="bg-blue-500 hover:bg-blue-600">
+                  <Link to="/subscription"><BadgeCheck className="w-4 h-4 me-1" /> احصل على شارة التوثيق</Link>
+                </Button>
+              )}
+            </div>
           </motion.div>
           <div className="max-w-5xl mx-auto mb-16 sm:mb-8 space-y-8">
             <motion.div variants={itemVariants} transition={{ duration: 0.5, delay: 0.2 }} initial="hidden" animate="visible">

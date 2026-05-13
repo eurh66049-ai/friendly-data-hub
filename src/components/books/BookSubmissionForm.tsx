@@ -1380,7 +1380,7 @@ const BookSubmissionForm: React.FC<BookSubmissionFormProps> = ({ onSuccess }) =>
         // تحديث المسودة الموجودة
         const { error } = await supabase
           .from('book_submissions')
-          .update(draftData)
+          .update(draftData as any)
           .eq('id', draftId)
           .eq('user_id', user.id);
 
