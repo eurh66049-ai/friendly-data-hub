@@ -53,6 +53,9 @@ const ReadingClubs = lazy(() => import('./pages/ReadingClubs'));
 const ReadingClubRoom = lazy(() => import('./pages/ReadingClubRoom'));
 const Timeline = lazy(() => import('./pages/Timeline'));
 const CoverDesigner = lazy(() => import('./pages/CoverDesigner'));
+const Subscription = lazy(() => import('./pages/Subscription'));
+const SubscriptionSuccess = lazy(() => import('./pages/SubscriptionSuccess'));
+const ProfileCustomization = lazy(() => import('./pages/ProfileCustomization'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +108,9 @@ function AppContent() {
           <Route path="/daily-messages" element={<SiteUpdates />} />
           <Route path="/donation" element={<Donation />} />
           <Route path="/donation-success" element={<DonationSuccess />} />
+          <Route path="/subscription" element={<Subscription />} />
+          <Route path="/subscription-success" element={<SubscriptionSuccess />} />
+          <Route path="/profile-customization" element={<ProfileCustomization />} />
           <Route path="/categories" element={<BookCategories />} />
           <Route path="/category/:category" element={<CategoryBooks />} />
           <Route path="/authors" element={<Authors />} />
